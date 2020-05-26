@@ -7,5 +7,6 @@ export default class Example {
 
   init() {
     this.element.classList.add('');
+    console.log('test');
   }
 }
