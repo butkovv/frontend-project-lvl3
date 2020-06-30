@@ -1,6 +1,7 @@
 import { watch } from 'melanke-watchjs';
 import * as yup from 'yup';
 import i18next from 'i18next';
+import axios from 'axios';
 import resources from './locales';
 
 const proxyURL = 'https://cors-anywhere.herokuapp.com/';
@@ -47,11 +48,13 @@ export default () => {
   const addNewFeed = (url, data) => {
     const title = data.querySelector('title').textContent;
     const description = data.querySelector('description').textContent;
+    const lastUpdated = Date.now();
     const newFeed = {
       id: state.currentFeedID,
       url,
       title,
       description,
+      lastUpdated,
     };
     state.feeds = [...state.feeds, newFeed];
 
@@ -66,6 +69,7 @@ export default () => {
         link: itemLink,
       };
       state.posts = [...state.posts, newPost];
+      state.currentPostID += 1;
     });
     state.currentFeedID += 1;
     urlInputField.value = '';
@@ -73,12 +77,43 @@ export default () => {
     feedback.textContent = i18next.t('feedback.success');
   };
 
+  const checkForNewPosts = (feed, data) => {
+    const currentTime = Date.now();
+    const items = data.querySelectorAll('item');
+    items.forEach((item) => {
+      const pubDate = new Date(item.querySelector('pubDate').textContent);
+      if ((pubDate.getTime() - feed.lastUpdated) >= 0) {
+        const itemTitle = item.querySelector('title').textContent;
+        const itemLink = item.querySelector('link').textContent;
+        const newPost = {
+          postId: state.currentPostId,
+          feedId: feed.id,
+          title: itemTitle,
+          link: itemLink,
+        };
+        state.posts = [newPost, ...state.posts];
+        state.currentPostID += 1;
+      }
+    });
+    const activeFeed = state.feeds.find((el) => el.id === feed.id);
+    activeFeed.lastUpdated = currentTime;
+  };
+
+  const updateFeeds = () => {
+    console.log('check!');
+    state.feeds.forEach((feed) => {
+      axios.get(`${proxyURL}${feed.url}`)
+        .then((response) => parseRSS(response.data))
+        .then((data) => checkForNewPosts(feed, data))
+        .catch((error) => { state.errors = [...state.errors, error]; });
+    });
+    setTimeout(updateFeeds, 15000);
+  };
 
   const submitNewURL = (url) => {
     state.validationState = 'inactive';
-    fetch(`${proxyURL}${url}`)
-      .then((response) => response.text())
-      .then((str) => parseRSS(str))
+    axios.get(`${proxyURL}${url}`)
+      .then((response) => parseRSS(response.data))
       .then((data) => addNewFeed(url, data))
       .catch((error) => { state.errors = [...state.errors, error]; })
       .then(() => { state.validationState = 'valid'; });
@@ -96,12 +131,13 @@ export default () => {
 
   const renderStreamDisplay = () => {
     streamDisplay.innerHTML = '';
-    state.posts.forEach((post) => {
+    for (let i = state.posts.length - 1; i > 0; i -= 1) {
+      const post = state.posts[i];
       const postDiv = document.createElement('div');
       postDiv.classList.add('row');
       postDiv.innerHTML = `<a href='${post.link}'>${post.title}</a>`;
       streamDisplay.prepend(postDiv);
-    });
+    }
   };
 
   const renderErrors = () => {
@@ -167,6 +203,7 @@ export default () => {
       state.errors.push(i18next.t('feedback.alreadyExists'));
     } else {
       submitNewURL(submittedURL);
+      updateFeeds();
     }
   });
 };
