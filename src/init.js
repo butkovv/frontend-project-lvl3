@@ -23,7 +23,7 @@ export default () => {
     feeds: [],
     posts: [],
     errors: [],
-    validationState: 'valid',
+    formState: 'valid',
   };
   const feedInputForm = document.querySelector('.rss-form');
   const urlInputField = document.querySelector('input[name=url]');
@@ -57,9 +57,9 @@ export default () => {
       lastUpdated,
     };
     state.feeds = [...state.feeds, newFeed];
-
     const items = data.querySelectorAll('item');
-    items.forEach((item) => {
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+      const item = items[i];
       const itemTitle = item.querySelector('title').textContent;
       const itemLink = item.querySelector('link').textContent;
       const newPost = {
@@ -68,13 +68,10 @@ export default () => {
         title: itemTitle,
         link: itemLink,
       };
-      state.posts = [...state.posts, newPost];
+      state.posts = [newPost, ...state.posts];
       state.currentPostID += 1;
-    });
+    }
     state.currentFeedID += 1;
-    urlInputField.value = '';
-    feedback.classList.add('text-success');
-    feedback.textContent = i18next.t('feedback.success');
   };
 
   const checkForNewPosts = (feed, data) => {
@@ -100,7 +97,6 @@ export default () => {
   };
 
   const updateFeeds = () => {
-    console.log('check!');
     state.feeds.forEach((feed) => {
       axios.get(`${proxyURL}${feed.url}`)
         .then((response) => parseRSS(response.data))
@@ -111,12 +107,12 @@ export default () => {
   };
 
   const submitNewURL = (url) => {
-    state.validationState = 'inactive';
+    state.formState = 'inactive';
     axios.get(`${proxyURL}${url}`)
       .then((response) => parseRSS(response.data))
       .then((data) => addNewFeed(url, data))
       .catch((error) => { state.errors = [...state.errors, error]; })
-      .then(() => { state.validationState = 'valid'; });
+      .then(() => { state.formState = 'submitted'; });
   };
 
   const renderFeedDisplay = () => {
@@ -152,16 +148,22 @@ export default () => {
     }
   };
 
-  watch(state, 'validationState', () => {
+  watch(state, 'formState', () => {
     const submitButton = document.querySelector('button[type="submit"]');
-    if (state.validationState === 'inactive') {
+    if (state.formState === 'submitted') {
+      urlInputField.value = '';
+      feedback.classList.add('text-success');
+      feedback.textContent = i18next.t('feedback.success');
+      submitButton.removeAttribute('disabled');
+    }
+    if (state.formState === 'inactive') {
       submitButton.setAttribute('disabled', '');
     }
-    if (state.validationState === 'valid') {
+    if (state.formState === 'valid') {
       submitButton.removeAttribute('disabled');
       urlInputField.classList.remove('is-invalid');
     }
-    if (state.validationState === 'invalid') {
+    if (state.formState === 'invalid') {
       submitButton.setAttribute('disabled', '');
       urlInputField.classList.add('is-invalid');
     }
@@ -184,9 +186,9 @@ export default () => {
     const formData = Object.fromEntries(new FormData(feedInputForm));
     try {
       schema.validateSync(formData, { abortEarly: false });
-      state.validationState = 'valid';
+      state.formState = 'valid';
     } catch (errors) {
-      state.validationState = 'invalid';
+      state.formState = 'invalid';
       errors.inner.forEach((error) => {
         console.log(error.message);
         state.errors.push(error.message);
