@@ -115,7 +115,6 @@ export default () => {
     } catch (errors) {
       state.formState = 'invalid';
       errors.inner.forEach((error) => {
-        console.log(error.message);
         state.errors.push(error.message);
       });
     }
