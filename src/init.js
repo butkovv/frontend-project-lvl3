@@ -23,13 +23,13 @@ export default () => {
     feeds: [],
     posts: [],
     errors: [],
-    formState: 'valid',
+    formState: '',
   };
 
   watch(state);
 
   const feedInputForm = document.querySelector('.rss-form');
-  const urlInputField = document.querySelector('input[name=url]');
+  const urlInputField = document.querySelector('.form-control');
 
   const parseRSS = (rss) => {
     const parsedData = new window.DOMParser().parseFromString(rss, 'text/xml');
@@ -47,7 +47,7 @@ export default () => {
       description,
       lastUpdated,
     };
-    state.feeds = [...state.feeds, newFeed];
+    state.feeds = [newFeed, ...state.feeds];
     const items = data.querySelectorAll('item');
     for (let i = items.length - 1; i >= 0; i -= 1) {
       const item = items[i];
@@ -132,4 +132,5 @@ export default () => {
       updateFeeds();
     }
   });
+  state.formState = 'initial';
 };
