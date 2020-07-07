@@ -8,16 +8,11 @@ export default (state) => {
     debug: true,
     resources,
   });
-  const mainContainer = document.querySelector('.container');
-  const outputRow = document.createElement('div');
-  outputRow.classList.add('row', 'ml-1');
-  outputRow.innerHTML = '<div class="col" id="feeds"></div><div class="col" id="stream"></div>';
-  mainContainer.appendChild(outputRow);
 
   const urlInputField = document.querySelector('.form-control');
   const feedback = document.querySelector('.feedback');
-  const feedsDisplay = document.querySelector('#feeds');
-  const streamDisplay = document.querySelector('#stream');
+  const feedsDisplay = document.querySelector('.feeds');
+  const streamDisplay = document.querySelector('.stream');
   const submitButton = document.querySelector('.btn-primary');
 
   const renderFeedDisplay = () => {
@@ -37,27 +32,27 @@ export default (state) => {
 
   const renderInputForm = () => {
     switch (state.formState) {
-      case 'initial':
+      case 'blank':
         submitButton.setAttribute('disabled', '');
-        break;
-      case 'submitted':
-        urlInputField.value = '';
-        feedback.classList.add('text-success');
-        feedback.textContent = i18next.t('feedback.success');
-        submitButton.removeAttribute('disabled');
-        urlInputField.removeAttribute('disabled');
-        break;
-      case 'inactive':
-        submitButton.setAttribute('disabled', '');
-        urlInputField.setAttribute('disabled', '');
-        break;
-      case 'valid':
-        submitButton.removeAttribute('disabled');
         urlInputField.classList.remove('is-invalid');
         break;
       case 'invalid':
         submitButton.setAttribute('disabled', '');
         urlInputField.classList.add('is-invalid');
+        break;
+      case 'valid':
+        submitButton.removeAttribute('disabled');
+        urlInputField.classList.remove('is-invalid');
+        break;
+      case 'submitting':
+        submitButton.setAttribute('disabled', '');
+        urlInputField.setAttribute('disabled', '');
+        break;
+      case 'submitted':
+        urlInputField.value = '';
+        feedback.classList.add('text-success');
+        feedback.textContent = i18next.t('feedback.success');
+        urlInputField.removeAttribute('disabled');
         break;
       default:
         throw new Error(`${i18next.t('errors.unknownState')}${state.formState}`);
