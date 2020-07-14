@@ -28,12 +28,23 @@ export default () => {
   const feedInputForm = document.querySelector('.rss-form');
   const urlInputField = document.querySelector('.form-control');
 
-  const parseRSS = (rss) => new window.DOMParser().parseFromString(rss, 'text/xml');
+  const parseRSS = (response) => new window.DOMParser().parseFromString(response.data, 'text/xml');
 
-  const addNewFeed = (url, response) => {
-    const data = parseRSS(response.data);
-    const title = data.querySelector('title').textContent;
-    const description = data.querySelector('description').textContent;
+  const addNewPost = (post, feedId) => {
+    const title = post.querySelector('title').textContent;
+    const link = post.querySelector('link').textContent;
+    const newPost = {
+      postId: _.uniqueId('p'),
+      feedId,
+      title,
+      link,
+    };
+    state.posts = [newPost, ...state.posts];
+  };
+
+  const addNewFeed = (url, feed) => {
+    const title = feed.querySelector('title').textContent;
+    const description = feed.querySelector('description').textContent;
     const lastUpdated = Date.now();
     const feedId = _.uniqueId('f');
     const newFeed = {
@@ -44,38 +55,21 @@ export default () => {
       lastUpdated,
     };
     state.feeds = [newFeed, ...state.feeds];
-    const items = data.querySelectorAll('item');
+    const items = feed.querySelectorAll('item');
     for (let i = items.length - 1; i >= 0; i -= 1) {
-      const item = items[i];
-      const itemTitle = item.querySelector('title').textContent;
-      const itemLink = item.querySelector('link').textContent;
-      const newPost = {
-        postId: _.uniqueId('p'),
-        feedId,
-        title: itemTitle,
-        link: itemLink,
-      };
-      state.posts = [newPost, ...state.posts];
+      addNewPost(items[i], feedId);
     }
     state.formState = 'submitted';
   };
 
   const checkForNewPosts = (feed, response) => {
-    const data = parseRSS(response.data);
+    const data = parseRSS(response);
     const currentTime = Date.now();
     const items = data.querySelectorAll('item');
     items.forEach((item) => {
       const pubDate = new Date(item.querySelector('pubDate').textContent);
       if ((pubDate.getTime() - feed.lastUpdated) >= 0) {
-        const itemTitle = item.querySelector('title').textContent;
-        const itemLink = item.querySelector('link').textContent;
-        const newPost = {
-          postId: _.uniqueId('p'),
-          feedId: feed.id,
-          title: itemTitle,
-          link: itemLink,
-        };
-        state.posts = [newPost, ...state.posts];
+        addNewPost(item, feed.id);
       }
     });
     const activeFeed = state.feeds.find((el) => el.id === feed.id);
@@ -83,29 +77,29 @@ export default () => {
   };
 
   const updateFeeds = () => {
-    state.feeds.forEach((feed) => {
-      axios.get(`${proxyURL}${feed.url}`)
-        .then((response) => checkForNewPosts(feed, response))
-        .catch((error) => { state.errors = [...state.errors, error]; });
-    });
-    setTimeout(updateFeeds, 15000);
+    const updates = state.feeds.map((feed) => axios
+      .get(`${proxyURL}${feed.url}`)
+      .then((response) => checkForNewPosts(feed, response))
+      .catch((error) => { state.errors = [...state.errors, error]; }));
+    Promise.all(updates).finally(setTimeout(updateFeeds, 15000));
   };
 
   const submitNewURL = (url) => {
     state.formState = 'submitting';
     axios.get(`${proxyURL}${url}`)
-      .then((response) => addNewFeed(url, response))
+      .then((response) => parseRSS(response))
+      .then((feed) => addNewFeed(url, feed))
       .catch((error) => { state.errors = [...state.errors, error]; });
   };
 
   urlInputField.addEventListener('input', (e) => {
     state.errors = [];
-    if (e.target.value.length === 0) {
+    const { value } = e.target;
+    if (value.length === 0) {
       state.formState = 'blank';
     } else {
       try {
-        const input = e.currentTarget.value;
-        schema.validateSync(input, { abortEarly: false });
+        schema.validateSync(value, { abortEarly: false });
         state.formState = 'valid';
       } catch (errors) {
         state.formState = 'invalid';
