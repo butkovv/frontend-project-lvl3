@@ -28,9 +28,9 @@ export default () => {
   const feedInputForm = document.querySelector('.rss-form');
   const urlInputField = document.querySelector('.form-control');
 
-  const parseRSS = (response) => new window.DOMParser().parseFromString(response.data, 'text/xml');
+  const parseRSS = (data) => new window.DOMParser().parseFromString(data, 'text/xml');
 
-  const addNewPost = (post, feedId) => {
+  const processPost = (post, feedId) => {
     const title = post.querySelector('title').textContent;
     const link = post.querySelector('link').textContent;
     const newPost = {
@@ -42,7 +42,8 @@ export default () => {
     state.posts = [newPost, ...state.posts];
   };
 
-  const addNewFeed = (url, feed) => {
+  const processFeed = (url, data) => {
+    const feed = parseRSS(data);
     const title = feed.querySelector('title').textContent;
     const description = feed.querySelector('description').textContent;
     const lastUpdated = Date.now();
@@ -57,19 +58,19 @@ export default () => {
     state.feeds = [newFeed, ...state.feeds];
     const items = feed.querySelectorAll('item');
     for (let i = items.length - 1; i >= 0; i -= 1) {
-      addNewPost(items[i], feedId);
+      processPost(items[i], feedId);
     }
     state.formState = 'submitted';
   };
 
-  const checkForNewPosts = (feed, response) => {
-    const data = parseRSS(response);
+  const checkForNewPosts = (feed, data) => {
+    const updatedFeed = parseRSS(data);
     const currentTime = Date.now();
-    const items = data.querySelectorAll('item');
+    const items = updatedFeed.querySelectorAll('item');
     items.forEach((item) => {
       const pubDate = new Date(item.querySelector('pubDate').textContent);
       if ((pubDate.getTime() - feed.lastUpdated) >= 0) {
-        addNewPost(item, feed.id);
+        processPost(item, feed.id);
       }
     });
     const activeFeed = state.feeds.find((el) => el.id === feed.id);
@@ -79,17 +80,19 @@ export default () => {
   const updateFeeds = () => {
     const updates = state.feeds.map((feed) => axios
       .get(`${proxyURL}${feed.url}`)
-      .then((response) => checkForNewPosts(feed, response))
+      .then((response) => checkForNewPosts(feed, response.data))
       .catch((error) => { state.errors = [...state.errors, error]; }));
     Promise.all(updates).finally(setTimeout(updateFeeds, 15000));
   };
 
-  const submitNewURL = (url) => {
+  const addFeed = (url) => {
     state.formState = 'submitting';
     axios.get(`${proxyURL}${url}`)
-      .then((response) => parseRSS(response))
-      .then((feed) => addNewFeed(url, feed))
-      .catch((error) => { state.errors = [...state.errors, error]; });
+      .then((response) => processFeed(url, response.data))
+      .catch((error) => {
+        state.errors = [...state.errors, error];
+        state.formState = 'submissionFailed';
+      });
   };
 
   urlInputField.addEventListener('input', (e) => {
@@ -118,7 +121,7 @@ export default () => {
     if (state.feeds.some((element) => submittedURL === element.url)) {
       state.errors.push(i18next.t('feedback.alreadyExists'));
     } else {
-      submitNewURL(submittedURL);
+      addFeed(submittedURL);
       updateFeeds();
     }
   });

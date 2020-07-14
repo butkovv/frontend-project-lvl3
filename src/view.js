@@ -38,6 +38,7 @@ export default (state) => {
         break;
       case 'invalid':
         submitButton.setAttribute('disabled', '');
+        urlInputField.removeAttribute('disabled');
         urlInputField.classList.add('is-invalid');
         break;
       case 'valid':
@@ -52,6 +53,9 @@ export default (state) => {
         urlInputField.value = '';
         feedback.classList.add('text-success');
         feedback.textContent = i18next.t('feedback.success');
+        urlInputField.removeAttribute('disabled');
+        break;
+      case 'submissionFailed':
         urlInputField.removeAttribute('disabled');
         break;
       default:
