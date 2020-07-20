@@ -30,8 +30,8 @@ export default (state) => {
     feedback.innerHTML = errors.join('');
   };
 
-  const renderInputForm = () => {
-    switch (state.formState) {
+  const renderInput = () => {
+    switch (state.inputState) {
       case 'blank':
         submitButton.setAttribute('disabled', '');
         urlInputField.classList.remove('is-invalid');
@@ -45,6 +45,13 @@ export default (state) => {
         submitButton.removeAttribute('disabled');
         urlInputField.classList.remove('is-invalid');
         break;
+      default:
+        throw new Error(`${i18next.t('errors.unknownState')}${state.inputState}`);
+    }
+  };
+
+  const renderSubmission = () => {
+    switch (state.submissionState) {
       case 'submitting':
         submitButton.setAttribute('disabled', '');
         urlInputField.setAttribute('disabled', '');
@@ -57,13 +64,16 @@ export default (state) => {
         break;
       case 'submissionFailed':
         urlInputField.removeAttribute('disabled');
+        submitButton.removeAttribute('disabled');
         break;
       default:
-        throw new Error(`${i18next.t('errors.unknownState')}${state.formState}`);
+        throw new Error(`${i18next.t('errors.unknownState')}${state.submissionState}`);
     }
   };
 
-  watch(state, 'formState', renderInputForm);
+  watch(state, 'inputState', renderInput);
+
+  watch(state, 'submissionState', renderSubmission);
 
   watch(state, 'errors', renderErrors);
 

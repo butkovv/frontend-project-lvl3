@@ -20,7 +20,8 @@ export default () => {
     feeds: [],
     posts: [],
     errors: [],
-    formState: 'blank',
+    inputState: 'blank',
+    submissionState: '',
   };
 
   watch(state);
@@ -39,7 +40,7 @@ export default () => {
       title,
       link,
     };
-    state.posts = [newPost, ...state.posts];
+    return newPost;
   };
 
   const processFeed = (url, data) => {
@@ -55,12 +56,12 @@ export default () => {
       description,
       lastUpdated,
     };
-    state.feeds = [newFeed, ...state.feeds];
     const items = feed.querySelectorAll('item');
     for (let i = items.length - 1; i >= 0; i -= 1) {
-      processPost(items[i], feedId);
+      const post = processPost(items[i], feedId);
+      state.posts = [post, ...state.posts];
     }
-    state.formState = 'submitted';
+    return newFeed;
   };
 
   const checkForNewPosts = (feed, data) => {
@@ -70,7 +71,8 @@ export default () => {
     items.forEach((item) => {
       const pubDate = new Date(item.querySelector('pubDate').textContent);
       if ((pubDate.getTime() - feed.lastUpdated) >= 0) {
-        processPost(item, feed.id);
+        const post = processPost(item, feed.id);
+        state.posts = [post, ...state.posts];
       }
     });
     const activeFeed = state.feeds.find((el) => el.id === feed.id);
@@ -86,29 +88,46 @@ export default () => {
   };
 
   const addFeed = (url) => {
-    state.formState = 'submitting';
+    state.submissionState = 'submitting';
     axios.get(`${proxyURL}${url}`)
-      .then((response) => processFeed(url, response.data))
+      .then((response) => {
+        state.feeds = [processFeed(url, response.data), ...state.feeds];
+        state.submissionState = 'submitted';
+        state.inputState = 'blank';
+      })
       .catch((error) => {
         state.errors = [...state.errors, error];
-        state.formState = 'submissionFailed';
+        state.submissionState = 'submissionFailed';
       });
+  };
+
+  const validateValue = (value) => {
+    const validationErrors = [];
+    try {
+      schema.validateSync(value, { abortEarly: false });
+    } catch (errors) {
+      errors.inner.forEach((error) => {
+        validationErrors.push(error.message);
+      });
+    }
+    if (state.feeds.some((element) => value === element.url)) {
+      validationErrors.push(i18next.t('feedback.alreadyExists'));
+    }
+    return validationErrors;
   };
 
   urlInputField.addEventListener('input', (e) => {
     state.errors = [];
     const { value } = e.target;
     if (value.length === 0) {
-      state.formState = 'blank';
+      state.inputState = 'blank';
     } else {
-      try {
-        schema.validateSync(value, { abortEarly: false });
-        state.formState = 'valid';
-      } catch (errors) {
-        state.formState = 'invalid';
-        errors.inner.forEach((error) => {
-          state.errors.push(error.message);
-        });
+      const errors = validateValue(value);
+      if (errors.length === 0) {
+        state.inputState = 'valid';
+      } else {
+        state.errors = [...errors];
+        state.inputState = 'invalid';
       }
     }
   });
@@ -118,11 +137,7 @@ export default () => {
     state.errors = [];
     const formData = new FormData(e.target);
     const submittedURL = formData.get('url');
-    if (state.feeds.some((element) => submittedURL === element.url)) {
-      state.errors.push(i18next.t('feedback.alreadyExists'));
-    } else {
-      addFeed(submittedURL);
-      updateFeeds();
-    }
+    addFeed(submittedURL);
+    updateFeeds();
   });
 };
