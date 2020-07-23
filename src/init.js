@@ -7,8 +7,6 @@ import watch from './view';
 
 const proxyURL = 'https://cors-anywhere.herokuapp.com/';
 
-const schema = yup.string().url();
-
 export default () => {
   i18next.init({
     lng: 'en',
@@ -24,6 +22,7 @@ export default () => {
     submissionState: '',
   };
 
+  const urlSchema = yup.string().url();
   watch(state);
 
   const feedInputForm = document.querySelector('.rss-form');
@@ -56,12 +55,13 @@ export default () => {
       description,
       lastUpdated,
     };
+    const posts = [];
     const items = feed.querySelectorAll('item');
     for (let i = items.length - 1; i >= 0; i -= 1) {
       const post = processPost(items[i], feedId);
-      state.posts = [post, ...state.posts];
+      posts.unshift(post);
     }
-    return newFeed;
+    return { feed: newFeed, posts };
   };
 
   const checkForNewPosts = (feed, data) => {
@@ -91,7 +91,9 @@ export default () => {
     state.submissionState = 'submitting';
     axios.get(`${proxyURL}${url}`)
       .then((response) => {
-        state.feeds = [processFeed(url, response.data), ...state.feeds];
+        const { feed, posts } = processFeed(url, response.data);
+        state.feeds = [feed, ...state.feeds];
+        state.posts = [...posts, ...state.posts];
         state.submissionState = 'submitted';
         state.inputState = 'blank';
       })
@@ -102,16 +104,22 @@ export default () => {
   };
 
   const validateValue = (value) => {
+    const urls = state.feeds.map((feed) => feed.url);
+    const duplicationSchema = yup.mixed().notOneOf(urls, i18next.t('feedback.alreadyExists'));
     const validationErrors = [];
     try {
-      schema.validateSync(value, { abortEarly: false });
+      urlSchema.validateSync(value, { abortEarly: false });
     } catch (errors) {
       errors.inner.forEach((error) => {
         validationErrors.push(error.message);
       });
     }
-    if (state.feeds.some((element) => value === element.url)) {
-      validationErrors.push(i18next.t('feedback.alreadyExists'));
+    try {
+      duplicationSchema.validateSync(value, { abortEarly: false });
+    } catch (errors) {
+      errors.inner.forEach((error) => {
+        validationErrors.push(error.message);
+      });
     }
     return validationErrors;
   };

@@ -1,14 +1,7 @@
 import { watch } from 'melanke-watchjs';
 import i18next from 'i18next';
-import resources from './locales';
 
 export default (state) => {
-  i18next.init({
-    lng: 'en',
-    debug: true,
-    resources,
-  });
-
   const urlInputField = document.querySelector('.form-control');
   const feedback = document.querySelector('.feedback');
   const feedsDisplay = document.querySelector('.feeds');
@@ -30,7 +23,7 @@ export default (state) => {
     feedback.innerHTML = errors.join('');
   };
 
-  const renderInput = () => {
+  const renderFormOnInput = () => {
     switch (state.inputState) {
       case 'blank':
         submitButton.setAttribute('disabled', '');
@@ -50,7 +43,7 @@ export default (state) => {
     }
   };
 
-  const renderSubmission = () => {
+  const renderFormOnSubmission = () => {
     switch (state.submissionState) {
       case 'submitting':
         submitButton.setAttribute('disabled', '');
@@ -71,9 +64,9 @@ export default (state) => {
     }
   };
 
-  watch(state, 'inputState', renderInput);
+  watch(state, 'inputState', renderFormOnInput);
 
-  watch(state, 'submissionState', renderSubmission);
+  watch(state, 'submissionState', renderFormOnSubmission);
 
   watch(state, 'errors', renderErrors);
 
