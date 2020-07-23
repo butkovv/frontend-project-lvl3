@@ -23,7 +23,7 @@ export default (state) => {
     feedback.innerHTML = errors.join('');
   };
 
-  const renderFormOnInput = () => {
+  const highlightValidation = () => {
     switch (state.inputState) {
       case 'blank':
         submitButton.setAttribute('disabled', '');
@@ -43,7 +43,7 @@ export default (state) => {
     }
   };
 
-  const renderFormOnSubmission = () => {
+  const displaySubmissionState = () => {
     switch (state.submissionState) {
       case 'submitting':
         submitButton.setAttribute('disabled', '');
@@ -64,9 +64,9 @@ export default (state) => {
     }
   };
 
-  watch(state, 'inputState', renderFormOnInput);
+  watch(state, 'inputState', highlightValidation);
 
-  watch(state, 'submissionState', renderFormOnSubmission);
+  watch(state, 'submissionState', displaySubmissionState);
 
   watch(state, 'errors', renderErrors);
 
