@@ -105,17 +105,11 @@ export default () => {
 
   const validateValue = (value) => {
     const urls = state.feeds.map((feed) => feed.url);
-    const duplicationSchema = yup.mixed().notOneOf(urls, i18next.t('feedback.alreadyExists'));
     const validationErrors = [];
     try {
       urlSchema.validateSync(value, { abortEarly: false });
-    } catch (errors) {
-      errors.inner.forEach((error) => {
-        validationErrors.push(error.message);
-      });
-    }
-    try {
-      duplicationSchema.validateSync(value, { abortEarly: false });
+      yup.mixed().notOneOf(urls, i18next.t('feedback.alreadyExists'))
+        .validateSync(value, { abortEarly: false });
     } catch (errors) {
       errors.inner.forEach((error) => {
         validationErrors.push(error.message);
