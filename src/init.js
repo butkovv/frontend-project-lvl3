@@ -8,12 +8,6 @@ import watch from './view';
 const proxyURL = 'https://cors-anywhere.herokuapp.com/';
 
 export default () => {
-  i18next.init({
-    lng: 'en',
-    debug: true,
-    resources,
-  });
-
   const state = {
     feeds: [],
     posts: [],
@@ -103,20 +97,22 @@ export default () => {
       });
   };
 
-  const validateValue = (value) => {
+  const validateValue = (value) => i18next.init({
+    lng: 'en',
+    debug: true,
+    resources,
+  }).then((t) => {
     const urls = state.feeds.map((feed) => feed.url);
     const validationErrors = [];
     try {
-      urlSchema.validateSync(value, { abortEarly: false });
-      yup.mixed().notOneOf(urls, i18next.t('feedback.alreadyExists'))
-        .validateSync(value, { abortEarly: false });
+      urlSchema.notOneOf(urls, t('feedback.alreadyExists')).validateSync(value, { abortEarly: false });
     } catch (errors) {
       errors.inner.forEach((error) => {
         validationErrors.push(error.message);
       });
     }
     return validationErrors;
-  };
+  });
 
   urlInputField.addEventListener('input', (e) => {
     state.errors = [];
@@ -124,13 +120,14 @@ export default () => {
     if (value.length === 0) {
       state.inputState = 'blank';
     } else {
-      const errors = validateValue(value);
-      if (errors.length === 0) {
-        state.inputState = 'valid';
-      } else {
-        state.errors = [...errors];
-        state.inputState = 'invalid';
-      }
+      validateValue(value).then((errors) => {
+        if (errors.length === 0) {
+          state.inputState = 'valid';
+        } else {
+          state.errors = [...errors];
+          state.inputState = 'invalid';
+        }
+      });
     }
   });
 

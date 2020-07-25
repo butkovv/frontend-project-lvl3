@@ -1,5 +1,6 @@
 import { watch } from 'melanke-watchjs';
 import i18next from 'i18next';
+import resources from './locales';
 
 export default (state) => {
   const urlInputField = document.querySelector('.form-control');
@@ -23,7 +24,11 @@ export default (state) => {
     feedback.innerHTML = errors.join('');
   };
 
-  const highlightValidation = () => {
+  const highlightValidation = () => i18next.init({
+    lng: 'en',
+    debug: true,
+    resources,
+  }).then((t) => {
     switch (state.inputState) {
       case 'blank':
         submitButton.setAttribute('disabled', '');
@@ -39,11 +44,15 @@ export default (state) => {
         urlInputField.classList.remove('is-invalid');
         break;
       default:
-        throw new Error(`${i18next.t('errors.unknownState')}${state.inputState}`);
+        throw new Error(`${t('errors.unknownState')}${state.inputState}`);
     }
-  };
+  });
 
-  const displaySubmissionState = () => {
+  const displaySubmissionState = () => i18next.init({
+    lng: 'en',
+    debug: true,
+    resources,
+  }).then((t) => {
     switch (state.submissionState) {
       case 'submitting':
         submitButton.setAttribute('disabled', '');
@@ -60,9 +69,9 @@ export default (state) => {
         submitButton.removeAttribute('disabled');
         break;
       default:
-        throw new Error(`${i18next.t('errors.unknownState')}${state.submissionState}`);
+        throw new Error(`${t('errors.unknownState')}${state.submissionState}`);
     }
-  };
+  });
 
   watch(state, 'inputState', highlightValidation);
 
