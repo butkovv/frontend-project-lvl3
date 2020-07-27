@@ -13,7 +13,7 @@ export default () => {
     posts: [],
     errors: [],
     inputState: 'blank',
-    submissionState: '',
+    submissionState: null,
   };
 
   const urlSchema = yup.string().url();
@@ -58,7 +58,7 @@ export default () => {
     return { feed: newFeed, posts };
   };
 
-  const checkForNewPosts = (feed, data) => {
+  const addNewPosts = (feed, data) => {
     const updatedFeed = parseRSS(data);
     const currentTime = Date.now();
     const items = updatedFeed.querySelectorAll('item');
@@ -76,7 +76,7 @@ export default () => {
   const updateFeeds = () => {
     const updates = state.feeds.map((feed) => axios
       .get(`${proxyURL}${feed.url}`)
-      .then((response) => checkForNewPosts(feed, response.data))
+      .then((response) => addNewPosts(feed, response.data))
       .catch((error) => { state.errors = [...state.errors, error]; }));
     Promise.all(updates).finally(setTimeout(updateFeeds, 15000));
   };
@@ -103,15 +103,12 @@ export default () => {
     resources,
   }).then((t) => {
     const urls = state.feeds.map((feed) => feed.url);
-    const validationErrors = [];
     try {
       urlSchema.notOneOf(urls, t('feedback.alreadyExists')).validateSync(value, { abortEarly: false });
-    } catch (errors) {
-      errors.inner.forEach((error) => {
-        validationErrors.push(error.message);
-      });
+    } catch (error) {
+      return error.message;
     }
-    return validationErrors;
+    return null;
   });
 
   urlInputField.addEventListener('input', (e) => {
@@ -120,11 +117,11 @@ export default () => {
     if (value.length === 0) {
       state.inputState = 'blank';
     } else {
-      validateValue(value).then((errors) => {
-        if (errors.length === 0) {
+      validateValue(value).then((error) => {
+        if (!error) {
           state.inputState = 'valid';
         } else {
-          state.errors = [...errors];
+          state.errors = [error];
           state.inputState = 'invalid';
         }
       });
