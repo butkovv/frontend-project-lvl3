@@ -105,10 +105,10 @@ export default () => {
     const urls = state.feeds.map((feed) => feed.url);
     try {
       urlSchema.notOneOf(urls, t('feedback.alreadyExists')).validateSync(value, { abortEarly: false });
+      return null;
     } catch (error) {
       return error.message;
     }
-    return null;
   });
 
   urlInputField.addEventListener('input', (e) => {
