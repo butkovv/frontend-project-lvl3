@@ -8,12 +8,21 @@ import watch from './view';
 const proxyURL = 'https://cors-anywhere.herokuapp.com/';
 
 export default () => {
+  i18next.init({
+    lng: 'en',
+    debug: true,
+    resources,
+  });
+
   const state = {
     feeds: [],
     posts: [],
     errors: [],
-    inputState: 'blank',
-    submissionState: null,
+    form: {
+      inputState: 'blank',
+      submissionState: 'awaiting',
+      errors: [],
+    },
   };
 
   const urlSchema = yup.string().url();
@@ -22,51 +31,48 @@ export default () => {
   const feedInputForm = document.querySelector('.rss-form');
   const urlInputField = document.querySelector('.form-control');
 
-  const parseRSS = (data) => new window.DOMParser().parseFromString(data, 'text/xml');
-
   const processPost = (post, feedId) => {
     const title = post.querySelector('title').textContent;
     const link = post.querySelector('link').textContent;
+    const publicationDate = new Date(post.querySelector('pubDate').textContent);
     const newPost = {
       postId: _.uniqueId('p'),
       feedId,
       title,
       link,
+      publicationDate,
     };
     return newPost;
   };
 
-  const processFeed = (url, data) => {
-    const feed = parseRSS(data);
-    const title = feed.querySelector('title').textContent;
-    const description = feed.querySelector('description').textContent;
+  const parseRSS = (xml) => {
+    const document = new window.DOMParser().parseFromString(xml, 'text/xml');
+    const title = document.querySelector('title').textContent;
+    const description = document.querySelector('description').textContent;
     const lastUpdated = Date.now();
     const feedId = _.uniqueId('f');
-    const newFeed = {
+    const feed = {
       id: feedId,
-      url,
       title,
       description,
       lastUpdated,
     };
     const posts = [];
-    const items = feed.querySelectorAll('item');
-    for (let i = items.length - 1; i >= 0; i -= 1) {
-      const post = processPost(items[i], feedId);
-      posts.unshift(post);
-    }
-    return { feed: newFeed, posts };
+    const items = document.querySelectorAll('item');
+    items.forEach((item) => {
+      const post = processPost(item, feedId);
+      posts.push(post);
+    });
+    return { feed, posts };
   };
 
-  const addNewPosts = (feed, data) => {
-    const updatedFeed = parseRSS(data);
+  const addNewPosts = (feed, xml) => {
+    const { posts } = parseRSS(xml);
     const currentTime = Date.now();
-    const items = updatedFeed.querySelectorAll('item');
-    items.forEach((item) => {
-      const pubDate = new Date(item.querySelector('pubDate').textContent);
-      if ((pubDate.getTime() - feed.lastUpdated) >= 0) {
-        const post = processPost(item, feed.id);
-        state.posts = [post, ...state.posts];
+    posts.forEach((post) => {
+      const { publicationDate } = post;
+      if ((publicationDate.getTime() - feed.lastUpdated) >= 0) {
+        state.posts.unshift(post);
       }
     });
     const activeFeed = state.feeds.find((el) => el.id === feed.id);
@@ -82,54 +88,53 @@ export default () => {
   };
 
   const addFeed = (url) => {
-    state.submissionState = 'submitting';
+    state.errors = [];
+    state.form.submissionState = 'submitting';
     axios.get(`${proxyURL}${url}`)
       .then((response) => {
-        const { feed, posts } = processFeed(url, response.data);
-        state.feeds = [feed, ...state.feeds];
+        const { feed, posts } = parseRSS(response.data);
+        state.feeds.unshift({ ...feed, url });
         state.posts = [...posts, ...state.posts];
-        state.submissionState = 'submitted';
-        state.inputState = 'blank';
+        state.form.submissionState = 'submitted';
+        state.form.inputState = 'blank';
       })
       .catch((error) => {
         state.errors = [...state.errors, error];
-        state.submissionState = 'submissionFailed';
+        state.form.submissionState = 'submissionFailed';
       });
   };
 
-  const validateValue = (value) => i18next.init({
-    lng: 'en',
-    debug: true,
-    resources,
-  }).then((t) => {
+  const validateValue = (value) => {
     const urls = state.feeds.map((feed) => feed.url);
     try {
-      urlSchema.notOneOf(urls, t('feedback.alreadyExists')).validateSync(value, { abortEarly: false });
+      urlSchema.notOneOf(urls, i18next.t('feedback.alreadyExists')).validateSync(value, { abortEarly: false });
       return null;
     } catch (error) {
       return error.message;
     }
-  });
+  };
 
   urlInputField.addEventListener('input', (e) => {
+    state.form.submissionState = 'awaiting';
+    state.form.errors = [];
     state.errors = [];
     const { value } = e.target;
     if (value.length === 0) {
-      state.inputState = 'blank';
+      state.form.inputState = 'blank';
     } else {
-      validateValue(value).then((error) => {
-        if (!error) {
-          state.inputState = 'valid';
-        } else {
-          state.errors = [error];
-          state.inputState = 'invalid';
-        }
-      });
+      const error = validateValue(value);
+      if (!error) {
+        state.form.inputState = 'valid';
+      } else {
+        state.form.errors = [error];
+        state.form.inputState = 'invalid';
+      }
     }
   });
 
   feedInputForm.addEventListener('submit', (e) => {
     e.preventDefault();
+    state.form.errors = [];
     state.errors = [];
     const formData = new FormData(e.target);
     const submittedURL = formData.get('url');

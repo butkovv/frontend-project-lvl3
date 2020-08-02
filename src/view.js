@@ -1,6 +1,5 @@
 import { watch } from 'melanke-watchjs';
 import i18next from 'i18next';
-import resources from './locales';
 
 export default (state) => {
   const urlInputField = document.querySelector('.form-control');
@@ -20,16 +19,14 @@ export default (state) => {
   };
 
   const renderErrors = () => {
-    const errors = state.errors.map((error) => `<div class="text-danger">${error}</div>`);
-    feedback.innerHTML = errors.join('');
+    const globalErrors = state.errors.map((error) => `<div class="text-danger">${error}</div>`);
+    const formErrors = state.form.errors.map((error) => `<div class="text-danger">${error}</div>`);
+    const output = [...globalErrors, ...formErrors];
+    feedback.innerHTML = output.join('');
   };
 
-  const highlightValidation = () => i18next.init({
-    lng: 'en',
-    debug: true,
-    resources,
-  }).then((t) => {
-    switch (state.inputState) {
+  const highlightValidation = () => {
+    switch (state.form.inputState) {
       case 'blank':
         submitButton.setAttribute('disabled', '');
         urlInputField.classList.remove('is-invalid');
@@ -44,16 +41,14 @@ export default (state) => {
         urlInputField.classList.remove('is-invalid');
         break;
       default:
-        throw new Error(`${t('errors.unknownState')}${state.inputState}`);
+        throw new Error(`Unknown state: ${state.form.inputState}`);
     }
-  });
+  };
 
-  const displaySubmissionState = () => i18next.init({
-    lng: 'en',
-    debug: true,
-    resources,
-  }).then((t) => {
-    switch (state.submissionState) {
+  const displaySubmissionState = () => {
+    switch (state.form.submissionState) {
+      case 'awaiting':
+        break;
       case 'submitting':
         submitButton.setAttribute('disabled', '');
         urlInputField.setAttribute('disabled', '');
@@ -69,15 +64,15 @@ export default (state) => {
         submitButton.removeAttribute('disabled');
         break;
       default:
-        throw new Error(`${t('errors.unknownState')}${state.submissionState}`);
+        throw new Error(`Unknown state: ${state.form.submissionState}`);
     }
-  });
+  };
 
-  watch(state, 'inputState', highlightValidation);
+  watch(state.form, 'inputState', highlightValidation);
 
-  watch(state, 'submissionState', displaySubmissionState);
+  watch(state.form, 'submissionState', displaySubmissionState);
 
-  watch(state, 'errors', renderErrors);
+  watch(state, ['errors', 'form.errors'], renderErrors);
 
   watch(state, 'feeds', renderFeedDisplay);
 
