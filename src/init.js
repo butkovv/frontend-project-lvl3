@@ -1,9 +1,10 @@
 import * as yup from 'yup';
 import i18next from 'i18next';
 import axios from 'axios';
-import _ from 'lodash';
+
 import resources from './locales';
 import watch from './view';
+import parseRSS from './parser';
 
 const proxyURL = 'https://cors-anywhere.herokuapp.com/';
 
@@ -30,41 +31,6 @@ export default () => {
 
   const feedInputForm = document.querySelector('.rss-form');
   const urlInputField = document.querySelector('.form-control');
-
-  const processPost = (post, feedId) => {
-    const title = post.querySelector('title').textContent;
-    const link = post.querySelector('link').textContent;
-    const publicationDate = new Date(post.querySelector('pubDate').textContent);
-    const newPost = {
-      postId: _.uniqueId('p'),
-      feedId,
-      title,
-      link,
-      publicationDate,
-    };
-    return newPost;
-  };
-
-  const parseRSS = (xml) => {
-    const document = new window.DOMParser().parseFromString(xml, 'text/xml');
-    const title = document.querySelector('title').textContent;
-    const description = document.querySelector('description').textContent;
-    const lastUpdated = Date.now();
-    const feedId = _.uniqueId('f');
-    const feed = {
-      id: feedId,
-      title,
-      description,
-      lastUpdated,
-    };
-    const posts = [];
-    const items = document.querySelectorAll('item');
-    items.forEach((item) => {
-      const post = processPost(item, feedId);
-      posts.push(post);
-    });
-    return { feed, posts };
-  };
 
   const addNewPosts = (feed, xml) => {
     const { posts } = parseRSS(xml);
