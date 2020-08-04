@@ -1,7 +1,6 @@
 import { watch } from 'melanke-watchjs';
-import i18next from 'i18next';
 
-export default (state) => {
+export default (state, getText) => {
   const urlInputField = document.querySelector('.form-control');
   const feedback = document.querySelector('.feedback');
   const feedsDisplay = document.querySelector('.feeds');
@@ -56,7 +55,7 @@ export default (state) => {
       case 'submitted':
         urlInputField.value = '';
         feedback.classList.add('text-success');
-        feedback.textContent = i18next.t('feedback.success');
+        feedback.textContent = getText('feedback.success');
         urlInputField.removeAttribute('disabled');
         break;
       case 'submissionFailed':
